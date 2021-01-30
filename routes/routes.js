@@ -6,7 +6,9 @@ const appRouter = (app, fs) => {
     try {
       allData = await readFile(fs);
     } catch (err) {
-      throw err;
+      // throw err;
+      console.log(err);
+      console.log("Some error occured");
     }
     res.send(allData);
   });
@@ -25,13 +27,13 @@ const appRouter = (app, fs) => {
 
         //check if required data entry is present or not
         if (requiredData) res.send(requiredData);
-        else res.send(`${dataset} with Id ${Id} not found`);
+        else res.status(404).send(`${dataset} with Id ${Id} not found`);
       } else {
-        res.send(`${dataset} not found in database`);
+        res.status(404).send(`${dataset} not found in database`);
       }
     } catch (err) {
       console.log(err);
-      res.send("Some error occured");
+      res.status(500).send("Internal server error");
     }
   });
 
@@ -42,7 +44,7 @@ const appRouter = (app, fs) => {
       allData = await readFile(fs);
     } catch (err) {
       console.log(err);
-      res.send("Some error occured");
+      console.log("Internal server error");
     }
     let requiredDataset = allData[`${dataset}`];
 
@@ -66,8 +68,8 @@ const appRouter = (app, fs) => {
 
         //Comparator function for sorting
         const compare = (a, b) => {
-          const numberA = Number(a[`${sortingParameter}`]);
-          const numberB = Number(b[`${sortingParameter}`]);
+          const numberA = a[`${sortingParameter}`];
+          const numberB = b[`${sortingParameter}`];
           return numberA > numberB ? greater : numberA < numberB ? less : 0;
         };
 
@@ -115,7 +117,7 @@ const appRouter = (app, fs) => {
         await writeFile(fs, allData);
         res.status(201).send("Successfully Added");
       } catch (err) {
-        console.log("Some error occured");
+        console.log("Internal server error");
         console.log(err);
       }
     }
@@ -235,6 +237,4 @@ const appRouter = (app, fs) => {
   });
 };
 
-// export default appRouter;
 module.exports = appRouter;
-// export { appRouter };
