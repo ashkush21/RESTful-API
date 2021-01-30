@@ -1,32 +1,15 @@
+const { readFile, writeFile } = require("../services/service");
+
 const appRouter = (app, fs) => {
-  const filepath = "./data/store.json";
-
-  const readFile = async (dataset) => {
-    let unparsedAllData, allData;
-
+  app.get("/alldata", async (req, res) => {
+    let allData;
     try {
-      unparsedAllData = await fs.promises.readFile(filepath, "utf8");
-
-      //Handle the error when the JSON file is empty
-      if (!unparsedAllData) {
-        //Creates and empty json object in the file
-        await fs.promises.writeFile(filepath, "{}");
-        unparsedAllData = "{}";
-      }
-      allData = JSON.parse(unparsedAllData);
+      allData = await readFile(fs);
     } catch (err) {
       throw err;
     }
-    return allData;
-  };
-
-  const writeFile = async (input) => {
-    try {
-      await fs.promises.writeFile(filepath, JSON.stringify(input, null, 2));
-    } catch (err) {
-      throw err;
-    }
-  };
+    res.send(allData);
+  });
 
   app.get("/:entity/:id", async (req, res) => {
     const dataset = req.params.entity;
@@ -34,7 +17,7 @@ const appRouter = (app, fs) => {
     let allData, requiredDataset;
 
     try {
-      allData = await readFile(dataset);
+      allData = await readFile(fs);
       requiredDataset = allData[`${dataset}`];
       //check if corresponding dataset is present or not
       if (requiredDataset) {
@@ -54,14 +37,45 @@ const appRouter = (app, fs) => {
 
   app.get("/:entity", async (req, res) => {
     const dataset = req.params.entity;
-
+    const queryObject = req.query;
     try {
-      allData = await readFile(dataset);
+      allData = await readFile(fs);
     } catch (err) {
       console.log(err);
       res.send("Some error occured");
     }
     let requiredDataset = allData[`${dataset}`];
+
+    if (Object.keys(queryObject).length && dataset === "posts") {
+      const title = queryObject.title;
+      const author = queryObject.author;
+      const sortingParameter = queryObject._sort;
+      const sortingOrder = queryObject._order;
+      if (title && author) {
+        requiredDataset = requiredDataset.filter(
+          (data) => data.title === title && data.author === author
+        )[0];
+      }
+
+      if (
+        sortingParameter &&
+        (sortingOrder === "asc" || sortingOrder === "desc")
+      ) {
+        const greater = sortingOrder === "asc" ? 1 : -1;
+        const less = sortingOrder === "asc" ? -1 : 1;
+
+        //Comparator function for sorting
+        const compare = (a, b) => {
+          const numberA = Number(a[`${sortingParameter}`]);
+          const numberB = Number(b[`${sortingParameter}`]);
+          return numberA > numberB ? greater : numberA < numberB ? less : 0;
+        };
+
+        // sort the data according to the given parameter and order
+        requiredDataset.sort(compare);
+      }
+    }
+
     //check if corresponding dataset is present or not
     if (requiredDataset) res.send(requiredDataset);
     else res.send(`${dataset} not found in database`);
@@ -71,9 +85,13 @@ const appRouter = (app, fs) => {
     const dataset = req.params.entity;
     let allData;
     let input = req.body;
+    // If id is not present in the input object then generate an id
+    if (!input.id) {
+      input["id"] = toString(Date.now());
+    }
 
     try {
-      allData = await readFile(dataset);
+      allData = await readFile(fs);
     } catch (err) {
       throw err;
     }
@@ -94,7 +112,7 @@ const appRouter = (app, fs) => {
       allData[`${dataset}`].push(input);
 
       try {
-        await writeFile(allData);
+        await writeFile(fs, allData);
         res.status(201).send("Successfully Added");
       } catch (err) {
         console.log("Some error occured");
@@ -108,7 +126,7 @@ const appRouter = (app, fs) => {
     const Id = req.params.id;
     let allData;
     try {
-      allData = await readFile(dataset);
+      allData = await readFile(fs);
     } catch (err) {
       throw err;
     }
@@ -129,7 +147,7 @@ const appRouter = (app, fs) => {
         statusMessage = "Id not found, created new element";
       }
       try {
-        await writeFile(allData);
+        await writeFile(fs, allData);
       } catch {
         console.log(err);
       }
@@ -142,7 +160,7 @@ const appRouter = (app, fs) => {
     const Id = req.params.id;
     let allData;
     try {
-      allData = await readFile(dataset);
+      allData = await readFile(fs);
     } catch (err) {
       throw err;
     }
@@ -159,7 +177,7 @@ const appRouter = (app, fs) => {
         allData[`${dataset}`].splice(index, 1);
 
         try {
-          await writeFile(allData);
+          await writeFile(fs, allData);
         } catch (err) {
           console.log(err);
           console.log("Internal server error occur");
@@ -180,7 +198,7 @@ const appRouter = (app, fs) => {
     let allData;
 
     try {
-      allData = await readFile(dataset);
+      allData = await readFile(fs);
     } catch (err) {
       throw err;
     }
@@ -208,7 +226,7 @@ const appRouter = (app, fs) => {
         statusMessage = "Id not found, created new element";
       }
       try {
-        await writeFile(allData);
+        await writeFile(fs, allData);
       } catch {
         console.log(err);
       }
@@ -219,3 +237,4 @@ const appRouter = (app, fs) => {
 
 // export default appRouter;
 module.exports = appRouter;
+// export { appRouter };
